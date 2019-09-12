@@ -4,7 +4,6 @@ import (
 	"encoding/gob"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -40,30 +39,39 @@ var prevDate uint64
 
 var isReplyDetected bool
 
+var globalSelisih int
+
+func getReplyDetected() bool {
+	return isReplyDetected
+}
+
 //Optional to be implemented. Implement HandleXXXMessage for the types you need.
 func (*waHandler) HandleTextMessage(message whatsapp.TextMessage) {
-	isReplyDetected = true
+
 	if strings.Contains(message.Info.RemoteJid, "6281250002655") && !message.Info.FromMe && isLoaded {
 		fmt.Printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n")
 
 		fmt.Printf("%v %v %v %v\n\t%v\n", message.Info.Timestamp, message.Info.Id, message.Info.RemoteJid, message.Info.QuotedMessageID, message.Text)
 		selisih := message.Info.Timestamp - prevDate
+		globalSelisih = int(selisih)
 
 		fmt.Printf("Yuhuu! Selisihnya adalah %v detik\n", selisih)
+
 		// from thizzz
 
-		if selisih >= 10 {
-			resp, err := http.Get("http://168.235.67.17/uptime/send2wa.php?group=uji+whatsmate&msg=bot+whatsapp+lebih+dari+10+detik")
-			if err != nil {
-				log.Fatalln(err)
-			}
-			fmt.Printf("Message sent to WhatsApp Group!")
-			defer resp.Body.Close()
-		} else {
-			fmt.Printf("Selisihnya tidak lebih dari 10, masih aman, yaitu %v\n", selisih)
-		}
+		// if selisih >= 10 {
+		// 	resp, err := http.Get("http://168.235.67.17/uptime/send2wa.php?group=uji+whatsmate&msg=bot+whatsapp+lebih+dari+10+detik")
+		// 	if err != nil {
+		// 		log.Fatalln(err)
+		// 	}
+		// 	fmt.Printf("Message sent to WhatsApp Group!")
+		// 	defer resp.Body.Close()
+		// } else {
+		// 	fmt.Printf("Selisihnya tidak lebih dari 10, masih aman, yaitu %v\n", selisih)
+		// }
 		// to thizzz
 		prevDate = message.Info.Timestamp
+		isReplyDetected = true
 		fmt.Printf("-------------------------------------end--------------------------------\n\n\n")
 	} else if strings.Contains(message.Info.RemoteJid, "6281250002655") && message.Info.FromMe && isLoaded {
 		fmt.Println(("Rizal sudah mengirimkan pesan"))
@@ -95,6 +103,7 @@ func (*waHandler) HandleImageMessage(message whatsapp.ImageMessage) {
 var isLoaded bool
 
 func main() {
+
 	//create new WhatsApp connection
 	wac, err := whatsapp.NewConn(5 * time.Second)
 	if err != nil {
@@ -119,7 +128,6 @@ func main() {
 	isLoaded = false
 
 	for i := 0; i < 5; i++ {
-		fmt.Printf("isi dari is reply detected = %v\n", isLoaded)
 		<-time.After((20 * time.Second))
 		log.Printf("Sudah 20 detik nih, gw dari main, ini yang ke %v \nSending now!", i)
 		// whatsapp code
@@ -140,6 +148,21 @@ func main() {
 		}
 		// whatsapp end
 
+		//
+		// checking reply
+		go checkReply()
+		//
+		// if globalSelisih >= 10 {
+		// 	fmt.Printf("Selisihnya lebih BESAR dari 10, PARAAAHHHH %v\n", globalSelisih)
+		// 	// resp, err := http.Get("http://168.235.67.17/uptime/send2wa.php?group=uji+whatsmate&msg=bot+whatsapp+lebih+dari+10+detik")
+		// 	// if err != nil {
+		// 	// 	log.Fatalln(err)
+		// 	// }
+		// 	// fmt.Printf("Message sent to WhatsApp Group!")
+		// 	// defer resp.Body.Close()
+		// } else {
+		// 	fmt.Printf("Selisihnya tidak lebih dari 10, masih aman, yaitu %v\n", globalSelisih)
+		// }
 	}
 
 	c := make(chan os.Signal, 1)
@@ -155,6 +178,19 @@ func main() {
 	if err := writeSession(session); err != nil {
 		log.Fatalf("error saving session: %v", err)
 	}
+}
+
+func checkReply() {
+	i := 1
+
+	for isReplyDetected == false && i <= 10 {
+		// fmt.Printf("is reply nya adalaaaaahhhhhh %v selisiihnyaaaaaa %v\n", isReplyDetected, globalSelisih)
+		fmt.Printf("[ --%v-- ]\n", i)
+		time.Sleep(1 * time.Second)
+		i++
+	}
+	// reset is reply detected with this
+	isReplyDetected = false
 }
 
 func login(wac *whatsapp.Conn) error {
