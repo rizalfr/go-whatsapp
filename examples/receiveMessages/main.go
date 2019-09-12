@@ -4,8 +4,10 @@ import (
 	"encoding/gob"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -22,8 +24,8 @@ func (h *waHandler) HandleError(err error) {
 
 	if e, ok := err.(*whatsapp.ErrConnectionFailed); ok {
 		log.Printf("Connection failed, underlying error: %v", e.Err)
-		log.Println("Waiting 30sec...")
-		<-time.After(30 * time.Second)
+		log.Println("Waiting 15sec...")
+		<-time.After(15 * time.Second)
 		log.Println("Reconnecting...")
 		err := h.c.Restore()
 		if err != nil {
@@ -34,9 +36,41 @@ func (h *waHandler) HandleError(err error) {
 	}
 }
 
+var prevDate uint64
+
+var isReplyDetected bool
+
 //Optional to be implemented. Implement HandleXXXMessage for the types you need.
 func (*waHandler) HandleTextMessage(message whatsapp.TextMessage) {
-	fmt.Printf("%v %v %v %v\n\t%v\n", message.Info.Timestamp, message.Info.Id, message.Info.RemoteJid, message.Info.QuotedMessageID, message.Text)
+	isReplyDetected = true
+	if strings.Contains(message.Info.RemoteJid, "6281250002655") && !message.Info.FromMe && isLoaded {
+		fmt.Printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n")
+
+		fmt.Printf("%v %v %v %v\n\t%v\n", message.Info.Timestamp, message.Info.Id, message.Info.RemoteJid, message.Info.QuotedMessageID, message.Text)
+		selisih := message.Info.Timestamp - prevDate
+
+		fmt.Printf("Yuhuu! Selisihnya adalah %v detik\n", selisih)
+		// from thizzz
+
+		if selisih >= 10 {
+			resp, err := http.Get("http://168.235.67.17/uptime/send2wa.php?group=uji+whatsmate&msg=bot+whatsapp+lebih+dari+10+detik")
+			if err != nil {
+				log.Fatalln(err)
+			}
+			fmt.Printf("Message sent to WhatsApp Group!")
+			defer resp.Body.Close()
+		} else {
+			fmt.Printf("Selisihnya tidak lebih dari 10, masih aman, yaitu %v\n", selisih)
+		}
+		// to thizzz
+		prevDate = message.Info.Timestamp
+		fmt.Printf("-------------------------------------end--------------------------------\n\n\n")
+	} else if strings.Contains(message.Info.RemoteJid, "6281250002655") && message.Info.FromMe && isLoaded {
+		fmt.Println(("Rizal sudah mengirimkan pesan"))
+		// <-time.After((10 * time.Second))
+		// log.Println("Sudah 10 detik nih")
+		prevDate = message.Info.Timestamp
+	}
 }
 
 /*//Example for media handling. Video, Audio, Document are also possible in the same way
@@ -58,6 +92,8 @@ func (*waHandler) HandleImageMessage(message whatsapp.ImageMessage) {
 	log.Printf("%v %v\n\timage reveived, saved at:%v\n", message.Info.Timestamp, message.Info.RemoteJid, filename)
 }*/
 
+var isLoaded bool
+
 func main() {
 	//create new WhatsApp connection
 	wac, err := whatsapp.NewConn(5 * time.Second)
@@ -78,6 +114,32 @@ func main() {
 
 	if !pong || err != nil {
 		log.Fatalf("error pinging in: %v\n", err)
+	}
+
+	isLoaded = false
+
+	for i := 0; i < 5; i++ {
+		fmt.Printf("isi dari is reply detected = %v\n", isLoaded)
+		<-time.After((20 * time.Second))
+		log.Printf("Sudah 20 detik nih, gw dari main, ini yang ke %v \nSending now!", i)
+		// whatsapp code
+		msg := whatsapp.TextMessage{
+			Info: whatsapp.MessageInfo{
+				RemoteJid: "6281250002655@s.whatsapp.net",
+			},
+			Text: "Ya",
+		}
+
+		msgID, err := wac.Send(msg)
+		prevDate = uint64(time.Now().Unix())
+		if err != nil {
+			os.Exit(1)
+		} else {
+			fmt.Println("Message Sent -> ID : " + msgID)
+			isLoaded = true
+		}
+		// whatsapp end
+
 	}
 
 	c := make(chan os.Signal, 1)
