@@ -4,6 +4,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -128,8 +129,8 @@ func main() {
 	isLoaded = false
 
 	for i := 0; i < 5; i++ {
-		<-time.After((20 * time.Second))
-		log.Printf("Sudah 20 detik nih, gw dari main, ini yang ke %v \nSending now!", i)
+		<-time.After((3600 * time.Second))
+		log.Printf("Sudah 3600 detik nih, gw dari main, ini yang ke %v \nSending now!", i)
 		// whatsapp code
 		msg := whatsapp.TextMessage{
 			Info: whatsapp.MessageInfo{
@@ -181,15 +182,30 @@ func main() {
 }
 
 func checkReply() {
-	i := 1
-
-	for isReplyDetected == false && i <= 10 {
-		// fmt.Printf("is reply nya adalaaaaahhhhhh %v selisiihnyaaaaaa %v\n", isReplyDetected, globalSelisih)
-		fmt.Printf("[ --%v-- ]\n", i)
-		time.Sleep(1 * time.Second)
-		i++
+	c2 := make(chan string, 1)
+	go func() {
+		// time.Sleep(5 * time.Second)
+		for isReplyDetected == false {
+			fmt.Println("waiting for reply ...", isReplyDetected)
+			time.Sleep(time.Second)
+		}
+		if isReplyDetected == true {
+			c2 <- "ini hasil prosesnya berhasil"
+		}
+	}()
+	select {
+	case res := <-c2:
+		fmt.Println(res)
+	case <-time.After(10 * time.Second):
+		fmt.Println("kena timeout")
+		resp, err := http.Get("http://168.235.67.17/uptime/send2wa.php?group=uji+whatsmate&msg=bot+whatsapp+lebih+dari+10+detik")
+		if err != nil {
+			log.Fatalln(err)
+		}
+		fmt.Printf("Message sent to WhatsApp Group!")
+		defer resp.Body.Close()
 	}
-	// reset is reply detected with this
+
 	isReplyDetected = false
 }
 
