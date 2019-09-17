@@ -190,14 +190,14 @@ func checkReply() {
 			time.Sleep(time.Second)
 		}
 		if isReplyDetected == true {
-			c2 <- "ini hasil prosesnya berhasil"
+			c2 <- "reply found!"
 		}
 	}()
 	select {
 	case res := <-c2:
 		fmt.Println(res)
-	case <-time.After(10 * time.Second):
-		fmt.Println("kena timeout")
+	case <-time.After(20 * time.Second):
+		fmt.Println("20 seconds timeout reached")
 		resp, err := http.Get("http://168.235.67.17/uptime/send2wa.php?group=Okadoc.id+OnboardingTeam&msg=Monitor%20is%20DOWN%3A%20%5BPROD%5D%20Whatsapp%20Bot%20RS%20Permata%20Pamulang%20-%20Reason%3A%20Responding%20more%20than%2020%20seconds")
 		if err != nil {
 			log.Fatalln(err)
