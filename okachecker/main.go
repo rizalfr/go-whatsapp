@@ -143,7 +143,7 @@ func sendWhatsApp(wac *whatsapp.Conn) {
 		Info: whatsapp.MessageInfo{
 			RemoteJid: "6281250002655@s.whatsapp.net",
 		},
-		Text: "Ya",
+		Text: "Hallo",
 	}
 
 	msgID, err := wac.Send(msg)
