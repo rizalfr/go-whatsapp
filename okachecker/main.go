@@ -6,139 +6,37 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	qrcodeTerminal "github.com/Baozisoftware/qrcode-terminal-go"
 	"github.com/Rhymen/go-whatsapp"
-	"github.com/robfig/cron/v3"
 )
 
-type waHandler struct {
-	c *whatsapp.Conn
-}
-
-//HandleError needs to be implemented to be a valid WhatsApp handler
-func (h *waHandler) HandleError(err error) {
-
-	if e, ok := err.(*whatsapp.ErrConnectionFailed); ok {
-		log.Printf("Connection failed, underlying error: %v", e.Err)
-		log.Println("Waiting 15sec...")
-		<-time.After(15 * time.Second)
-		log.Println("Reconnecting...")
-		err := h.c.Restore()
-		if err != nil {
-			log.Fatalf("Restore failed: %v", err)
-		}
-	} else {
-		log.Printf("error occoured: %v\n", err)
-	}
-}
-
+var isReplyDetected bool
+var isLoaded bool
 var prevDate uint64
 
-var isReplyDetected bool
-
-var globalSelisih int
-
-func getReplyDetected() bool {
-	return isReplyDetected
-}
-
-//Optional to be implemented. Implement HandleXXXMessage for the types you need.
-func (*waHandler) HandleTextMessage(message whatsapp.TextMessage) {
-
-	if strings.Contains(message.Info.RemoteJid, "6281250002655") && !message.Info.FromMe && isLoaded {
-		fmt.Printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n")
-
-		fmt.Printf("%v %v %v %v\n\t%v\n", message.Info.Timestamp, message.Info.Id, message.Info.RemoteJid, message.Info.QuotedMessageID, message.Text)
-		selisih := message.Info.Timestamp - prevDate
-		globalSelisih = int(selisih)
-
-		fmt.Printf("Yuhuu! Selisihnya adalah %v detik\n", selisih)
-
-		prevDate = message.Info.Timestamp
-		isReplyDetected = true
-		fmt.Printf("-------------------------------------end--------------------------------\n\n\n")
-	} else if strings.Contains(message.Info.RemoteJid, "6281250002655") && message.Info.FromMe && isLoaded {
-		fmt.Println(("Rizal sudah mengirimkan pesan"))
-
-		prevDate = message.Info.Timestamp
-	}
-}
-
-/*//Example for media handling. Video, Audio, Document are also possible in the same way
-func (*waHandler) HandleImageMessage(message whatsapp.ImageMessage) {
-	data, err := message.Download()
-	if err != nil {
-		return
-	}
-	filename := fmt.Sprintf("%v/%v.%v", os.TempDir(), message.Info.Id, strings.Split(message.Type, "/")[1])
-	file, err := os.Create(filename)
-	defer file.Close()
-	if err != nil {
-		return
-	}
-	_, err = file.Write(data)
-	if err != nil {
-		return
-	}
-	log.Printf("%v %v\n\timage reveived, saved at:%v\n", message.Info.Timestamp, message.Info.RemoteJid, filename)
-}*/
-
-var isLoaded bool
-
 func main() {
-	fmt.Println("starting...")
-
+	fmt.Println("WhatsApp Bot Checker started...")
 	//create new WhatsApp connection
 	wac, err := whatsapp.NewConn(5 * time.Second)
 	if err != nil {
-		log.Fatalf("error creating connection: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error creating connection: %v\n", err)
+		return
 	}
 
 	//Add handler
 	wac.AddHandler(&waHandler{wac})
 
-	//login or restore
-	if err := login(wac); err != nil {
-		log.Fatalf("error logging in: %v\n", err)
-	}
-
-	//verifies phone connectivity
-	pong, err := wac.AdminTest()
-
-	if !pong || err != nil {
-		log.Fatalf("error pinging in: %v\n", err)
-	}
-
-	isLoaded = false
-	cr := cron.New()
-	cr.AddFunc("0 * * * *", func() {
-		fmt.Println("Sending WhatsApp every hour...")
-		sendWhatsApp(wac)
-	})
-	cr.Start()
-
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	<-c
-
-	//Disconnect safe
-	fmt.Println("Shutting down now.")
-	session, err := wac.Disconnect()
+	err = login(wac)
 	if err != nil {
-		log.Fatalf("error disconnecting: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error logging in: %v\n", err)
+		return
 	}
-	if err := writeSession(session); err != nil {
-		log.Fatalf("error saving session: %v", err)
-	}
-}
 
-func sendWhatsApp(wac *whatsapp.Conn) {
-	// whatsapp code
+	<-time.After(10 * time.Second)
+
 	msg := whatsapp.TextMessage{
 		Info: whatsapp.MessageInfo{
 			RemoteJid: "6281250002655@s.whatsapp.net",
@@ -147,20 +45,21 @@ func sendWhatsApp(wac *whatsapp.Conn) {
 	}
 
 	msgID, err := wac.Send(msg)
-	prevDate = uint64(time.Now().Unix())
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "error sending message: %v", err)
 		os.Exit(1)
 	} else {
 		fmt.Println("Message Sent -> ID : " + msgID)
 		isLoaded = true
 	}
+
+	//action after sending message
 	c2 := make(chan string, 1)
 	i := 1
 	go func() {
-		// time.Sleep(5 * time.Second)
 		for isReplyDetected == false {
 			time.Sleep(time.Second)
-			fmt.Printf("[%v] waiting for reply ...\n", i)
+			fmt.Printf("[ %v ] waiting for reply ...\n", i)
 			i++
 		}
 		if isReplyDetected == true {
@@ -183,6 +82,48 @@ func sendWhatsApp(wac *whatsapp.Conn) {
 	isReplyDetected = false
 }
 
+type waHandler struct {
+	c *whatsapp.Conn
+}
+
+//HandleError needs to be implemented to be a valid WhatsApp handler
+func (h *waHandler) HandleError(err error) {
+
+	if e, ok := err.(*whatsapp.ErrConnectionFailed); ok {
+		log.Printf("Connection failed, underlying error: %v", e.Err)
+		log.Println("Waiting 15sec...")
+		<-time.After(15 * time.Second)
+		log.Println("Reconnecting...")
+		err := h.c.Restore()
+		if err != nil {
+			log.Fatalf("Restore failed: %v", err)
+		}
+	} else {
+		log.Printf("error occoured: %v\n", err)
+	}
+}
+
+//Optional to be implemented. Implement HandleXXXMessage for the types you need.
+func (*waHandler) HandleTextMessage(message whatsapp.TextMessage) {
+
+	if strings.Contains(message.Info.RemoteJid, "6281250002655") && !message.Info.FromMe && isLoaded {
+		fmt.Printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n")
+
+		fmt.Printf("%v %v %v %v\n\t%v\n", message.Info.Timestamp, message.Info.Id, message.Info.RemoteJid, message.Info.QuotedMessageID, message.Text)
+		selisih := message.Info.Timestamp - prevDate
+
+		fmt.Printf("Yuhuu! Selisihnya adalah %v detik\n", selisih)
+
+		prevDate = message.Info.Timestamp
+		isReplyDetected = true
+		fmt.Printf("-------------------------------------end--------------------------------\n\n\n")
+	} else if strings.Contains(message.Info.RemoteJid, "6281250002655") && message.Info.FromMe && isLoaded {
+		fmt.Println(("Rizal sudah mengirimkan pesan"))
+
+		prevDate = message.Info.Timestamp
+	}
+}
+
 func login(wac *whatsapp.Conn) error {
 	//load saved session
 	session, err := readSession()
@@ -190,7 +131,7 @@ func login(wac *whatsapp.Conn) error {
 		//restore session
 		session, err = wac.RestoreWithSession(session)
 		if err != nil {
-			return fmt.Errorf("restoring failed: %v", err)
+			return fmt.Errorf("restoring failed: %v\n", err)
 		}
 	} else {
 		//no saved session -> regular login
@@ -201,14 +142,14 @@ func login(wac *whatsapp.Conn) error {
 		}()
 		session, err = wac.Login(qr)
 		if err != nil {
-			return fmt.Errorf("error during login: %v", err)
+			return fmt.Errorf("error during login: %v\n", err)
 		}
 	}
 
 	//save session
 	err = writeSession(session)
 	if err != nil {
-		return fmt.Errorf("error saving session: %v", err)
+		return fmt.Errorf("error saving session: %v\n", err)
 	}
 	return nil
 }
