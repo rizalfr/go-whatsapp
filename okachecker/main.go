@@ -37,20 +37,22 @@ func main() {
 
 	<-time.After(10 * time.Second)
 
-	msg := whatsapp.TextMessage{
-		Info: whatsapp.MessageInfo{
-			RemoteJid: "6281250002655@s.whatsapp.net",
-		},
-		Text: "Hallo",
-	}
+	for i := 0; i < 200; i++ {
+		msg := whatsapp.TextMessage{
+			Info: whatsapp.MessageInfo{
+				RemoteJid: "6281250002955@s.whatsapp.net",
+			},
+			Text: "Hallo",
+		}
 
-	msgID, err := wac.Send(msg)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error sending message: %v", err)
-		os.Exit(1)
-	} else {
-		fmt.Println("Message Sent -> ID : " + msgID)
-		isLoaded = true
+		msgID, err := wac.Send(msg)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error sending message: %v", err)
+			os.Exit(1)
+		} else {
+			fmt.Println("Message Sent -> ID : " + msgID)
+			isLoaded = true
+		}
 	}
 
 	//action after sending message
@@ -71,7 +73,7 @@ func main() {
 		fmt.Println(res)
 	case <-time.After(20 * time.Second):
 		fmt.Println("20 seconds timeout reached")
-		resp, err := http.Get("http://168.235.67.17/uptime/send2wa.php?group=Okadoc.id+OnboardingTeam&msg=Monitor%20is%20DOWN%3A%20%5BPROD%5D%20Whatsapp%20Bot%20RS%20Permata%20Pamulang%20-%20Reason%3A%20Responding%20more%20than%2020%20seconds")
+		resp, err := http.Get("http://168.235.67.17/uptime/send2wa.php?group=uji+whatsmate&msg=mang+ijay+ganteng+pisan")
 		if err != nil {
 			log.Fatalln(err)
 		}
