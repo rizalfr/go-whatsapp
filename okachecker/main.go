@@ -71,7 +71,7 @@ func main() {
 		fmt.Println(res)
 	case <-time.After(20 * time.Second):
 		fmt.Println("20 seconds timeout reached")
-		resp, err := http.Get("http://168.235.67.17/uptime/send2wa.php?group=Okadoc.id+OnboardingTeam&msg=Monitor%20is%20DOWN%3A%20%5BPROD%5D%20Whatsapp%20Bot%20RS%20Permata%20Pamulang%20-%20Reason%3A%20Responding%20more%20than%2020%20seconds")
+		resp, err := http.Get("http://168.235.67.17/uptime/send2wa.php?group=Onboarding+Okadoc+ID&msg=Monitor%20is%20DOWN%3A%20%5BPROD%5D%20Whatsapp%20Bot%20RS%20Permata%20Pamulang%20-%20Reason%3A%20Responding%20more%20than%2020%20seconds")
 		if err != nil {
 			log.Fatalln(err)
 		}
