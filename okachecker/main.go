@@ -157,6 +157,7 @@ func login(wac *whatsapp.Conn) error {
 func readSession() (whatsapp.Session, error) {
 	session := whatsapp.Session{}
 	file, err := os.Open(os.TempDir() + "/whatsappSession.gob")
+	fmt.Println(os.TempDir())
 	if err != nil {
 		return session, err
 	}
