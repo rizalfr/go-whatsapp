@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 
 	qrcodeTerminal "github.com/Baozisoftware/qrcode-terminal-go"
 	"github.com/Rhymen/go-whatsapp"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/jmoiron/sqlx"
 )
 
 var isReplyDetected bool
@@ -19,6 +22,20 @@ var prevDate uint64
 
 func main() {
 	fmt.Println("WhatsApp Bot Checker started...")
+
+	//database
+	db, err := sqlx.Connect("mysql", "qa:0o6TeRubrLvIrUxEqUZe@tcp(rm-tc5jixcknb8r1la0f6o.mysql.dubai.rds.aliyuncs.com:3306)/okadoc_queue")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	// Query the database, storing results in a []Person (wrapped in []interface{})
+	facilityConfigs := []FacilityConfigModel{}
+
+	err = db.Select(&facilityConfigs, "SELECT id, IFNULL(facility_id,'') as facility_id, IFNULL(facility_name,'') as facility_name, IFNULL(whatsapp_bot_number,'') as whatsapp_bot_number, IFNULL(whatsapp_group_name,'') as whatsapp_group_name FROM facility_configs")
+
+	var facilItem = facilityConfigs[0]
+
 	//create new WhatsApp connection
 	wac, err := whatsapp.NewConn(5 * time.Second)
 	if err != nil {
@@ -39,7 +56,7 @@ func main() {
 
 	msg := whatsapp.TextMessage{
 		Info: whatsapp.MessageInfo{
-			RemoteJid: "6281250002655@s.whatsapp.net",
+			RemoteJid: facilItem.WhatsappBotNumber + "@s.whatsapp.net",
 		},
 		Text: "Hallo",
 	}
@@ -71,7 +88,7 @@ func main() {
 		fmt.Println(res)
 	case <-time.After(20 * time.Second):
 		fmt.Println("20 seconds timeout reached")
-		resp, err := http.Get("http://168.235.67.17/uptime/send2wa.php?group=Onboarding+Okadoc+ID&msg=Monitor%20is%20DOWN%3A%20%5BPROD%5D%20Whatsapp%20Bot%20RS%20Permata%20Pamulang%20-%20Reason%3A%20Responding%20more%20than%2020%20seconds")
+		resp, err := http.Get("http://168.235.67.17/uptime/send2wa.php?group=" + url.QueryEscape(facilItem.WhatsappGroupName) + "&msg=Monitor%20is%20DOWN%3A%20%5BPROD%5D%20Whatsapp%20Bot%20RS%20Permata%20Pamulang%20-%20Reason%3A%20Responding%20more%20than%2020%20seconds")
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -80,6 +97,14 @@ func main() {
 	}
 
 	isReplyDetected = false
+}
+
+type FacilityConfigModel struct {
+	ID                int    `db:"id"`
+	FacilityID        string `db:"facility_id"`
+	FacilityName      string `db:"facility_name"`
+	WhatsappBotNumber string `db:"whatsapp_bot_number"`
+	WhatsappGroupName string `db:"whatsapp_group_name"`
 }
 
 type waHandler struct {
